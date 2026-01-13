@@ -5,6 +5,11 @@
 A set of auxiliary tools for creating shrink shape keys for character 3D models in Blender.
 Depending on the mesh shape and weights, it may not move to the desired position, so divide it into parts or adjust manually.
 
+## What is a shrink shape key?
+
+This shape key is implemented primarily on avatar character models that are intended to be modified.
+This shape key is not for performance purposes, but is used to prevent skin penetration when modifying.
+
 ## Installation
 
 Download the ZIP file from [Code > Download ZIP](https://github.com/mio3io/Mio3ShrinkTools/archive/master.zip).

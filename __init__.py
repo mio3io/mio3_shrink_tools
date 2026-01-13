@@ -15,13 +15,22 @@ bl_info = {
 class MMIO3SST_PT_main(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Edit"
+    bl_category = "Mio3"
     bl_label = "Mio3 Shrink Tools"
 
     def draw(self, context):
-        for op in ops:
-            if hasattr(op, "menu"):
-                op.menu(self, context)
+        layout = self.layout
+        col = layout.column()
+        row = col.row(align=True)
+        row.operator("mesh.mio3_auto_shrink", icon="ARMATURE_DATA")
+
+        row = layout.row(align=True)
+        row.label(text="Snap")
+        op = row.operator("mesh.mio3_snap_to_bone", text="並行")
+        row.operator("mesh.mio3_snap_to_joint", text="関節")
+
+        row = layout.row(align=True)
+        row.operator("mesh.mio3_align_to_bone", text="Align", icon="CURVES")
 
 
 def update_panel(self, context):
@@ -38,7 +47,7 @@ def update_panel(self, context):
 
 
 class MMIO3SST_Preferences(bpy.types.AddonPreferences):
-    bl_idname = __name__
+    bl_idname = __package__
 
     category: bpy.props.StringProperty(
         name="Tab Name",
@@ -54,23 +63,22 @@ class MMIO3SST_Preferences(bpy.types.AddonPreferences):
 translation_dict = {
     "en_US": {
         ("*", "DESC Auto Shrink"): "Automatically create shrink shape keys for deform bones\nHide bones you want to exclude, such as auxiliary bones and bust bones, in pause mode.",
-        ("*", "DESC Snapping a vertex to a bone"): "Snap selected vertices to bones",
-        ("*", "DESC Align edge loops"): "Align selected edge loops with respect to the bone coordinate Y axis",
     },
     "ja_JP": {
-        ("*", "Auto Shrink"): "シュリンクシェイプキー用のサポートツール",
-
-        ("*", "Auto Shrink"): "シュリンクを自動生成",
+        ("Operator", "Auto Shrink"): "シュリンクを自動生成",
         ("*", "DESC Auto Shrink"): "デフォームボーンのシュリンクシェイプキーを自動的に作成\n補助ボーンや胸ボーンなど対象外にしたいボーンはポーズモードで隠してください",
         ("*", "Snapping a vertex to a bone"): "頂点をボーンにスナップ",
-        ("*", "DESC Snapping a vertex to a bone"): "選択された頂点をボーンにスナップ",
+        ("*", "Snap selected vertices to bones"): "選択した頂点をボーンにスナップ",
         ("*", "Align edge loops"): "エッジループを整列",
-        ("*", "DESC Align edge loops"): "選択されたエッジループをボーン座標Y軸に対して整列",
+        ("*", "Align the selected edge loop perpendicular to the bone"): "選択したエッジループをボーンに対して垂直に整列させます",
 
-        ("*", "Leave the volume"): "ボリュームを残す",
-        ("*", "Selected only"): "選択した頂点のみ",
-        ("*", "Type Snap"): "スナップを優先",
-        ("*", "Type Tnterpolation"): "補間を優先",
+        ("*", "Selected bones only"): "選択したボーンのみ",
+        ("*", "Selected vertices only"): "選択した頂点のみ",
+        ("Operator", "Verts Only"): "頂点のみ",
+        ("Operator", "Bone Only"): "ボーンのみ",
+
+        ("*", "End Bone"): "エンドボーン",
+        ("*", "Joint Snap"): "関節スナップ",
 
         ("*", "Armature modifier not set"): "アーマチュアが設定されていません",
         ("*", "Register ShapeKey for Shrink"): "シュリンク用シェイプキーを登録してください",
