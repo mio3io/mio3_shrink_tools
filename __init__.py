@@ -8,7 +8,7 @@ bl_info = {
     "name": "Mio3 Shrink Tools",
     "version": (1, 0, 0),
     "blender": (3, 6, 0),
-    "location": "View 3D > Sidebar > Edit Tab > Mio3 Shrink Tools",
+    "location": "View 3D > Sidebar > Mio3 > Mio3 Shrink Tools",
     "description": "Support tools for shrink-shape keys",
     "category": "Mesh",
 }
@@ -64,7 +64,7 @@ class MMIO3SST_Preferences(bpy.types.AddonPreferences):
 
     category: bpy.props.StringProperty(
         name="Tab Name",
-        default="Edit",
+        default="Mio3",
         update=update_panel,
     )
 
@@ -120,10 +120,33 @@ ops = [
 ]
 
 
+def check_register(cls):
+    is_exist = hasattr(bpy.types, cls.__name__)
+    if not is_exist:
+        try:
+            bpy.utils.register_class(cls)
+        except:
+            print("Failed to register class: {}".format(cls.__name__))
+
+
+def check_unregister(cls):
+    is_exist = hasattr(bpy.types, cls.__name__)
+    if is_exist:
+        try:
+            bpy.utils.unregister_class(cls)
+        except:
+            print("Failed to unregister class: {}".format(cls.__name__))
+
+
 def register():
     bpy.app.translations.register(__name__, translation_dict)
     bpy.utils.register_class(MMIO3SST_Preferences)
+
+    category = bpy.context.preferences.addons[__package__].preferences.category
+    if category:
+        MMIO3SST_PT_main.bl_category = category
     bpy.utils.register_class(MMIO3SST_PT_main)
+
     for op in ops:
         op.register()
 
