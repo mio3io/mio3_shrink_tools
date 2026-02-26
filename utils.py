@@ -11,6 +11,24 @@ DEBUG = bool("--python" in sys.argv)
 class Mio3ShrinkToolsBase:
     _start_time = 0
 
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None and context.active_object.mode == "EDIT"
+
+    def invoke(self, context, event):
+        obj = context.active_object
+        obj.update_from_editmode()
+        if obj is None or obj.type != "MESH":
+            self.report({"CANCELLED"}, "Active object is not a mesh")
+            return {"CANCELLED"}
+        if not obj.find_armature():
+            self.report({"ERROR"}, "Armature modifier not set")
+            return {"CANCELLED"}
+        if not obj.active_shape_key:
+            self.report({"ERROR"}, "Register ShapeKey for Shrink")
+            return {"CANCELLED"}
+        return self.execute(context)
+
     def start_time(self):
         if DEBUG:
             self._start_time = time.time()
@@ -32,7 +50,7 @@ def find_islands(selected_verts, selected_edges) -> list:
             for e in v.link_edges:
                 if e in selected_edges:
                     ov = e.other_vert(v)
-                    if ov not in island:
+                    if ov in selected_verts and ov not in island:
                         island.add(ov)
                         stack.append(ov)
                         selected_verts.remove(ov)
@@ -59,7 +77,7 @@ def find_x_mirror_verts(bm, selected_verts) -> set:
     return mirror_verts
 
 
-def find_x_mirror_vert_pairs(bm, selected_verts) -> dict:
+def find_x_mirror_vert_pairs(bm, selected_verts, pad=True) -> dict:
     """X軸に対称な頂点のペアを見つける"""
     kd = kdtree.KDTree(len(bm.verts))
     for i, v in enumerate(bm.verts):
@@ -67,16 +85,60 @@ def find_x_mirror_vert_pairs(bm, selected_verts) -> dict:
     kd.balance()
 
     mirror_verts = {}
-    for v in selected_verts:
-        mirror_co = v.co.copy()
-        mirror_co.x = -mirror_co.x
-        _, index, dist = kd.find(mirror_co)
-        if dist < 0.0001:
-            mirror_vert = bm.verts[index]
-            if mirror_vert not in selected_verts:
-                mirror_verts[v] = mirror_vert
+    if pad:
+        for v in selected_verts:
+            result = None
+            mirror_co = v.co.copy()
+            mirror_co.x = -mirror_co.x
+            _, index, dist = kd.find(mirror_co)
+            if dist < 0.0001:
+                mirror_vert = bm.verts[index]
+                if mirror_vert not in selected_verts:
+                    result = mirror_vert
+            mirror_verts[v] = result
+    else:
+        for v in selected_verts:
+            mirror_co = v.co.copy()
+            mirror_co.x = -mirror_co.x
+            _, index, dist = kd.find(mirror_co)
+            if dist < 0.0001:
+                mirror_vert = bm.verts[index]
+                if mirror_vert not in selected_verts:
+                    mirror_verts[v] = mirror_vert
 
     return mirror_verts
+
+
+def find_x_mirror_edge_pairs(bm, selected_edges) -> dict:
+    """X軸に対称なエッジのペアを見つける"""
+    kd = kdtree.KDTree(len(bm.verts))
+    for i, v in enumerate(bm.verts):
+        kd.insert(v.co, i)
+    kd.balance()
+
+    mirror_edges = {}
+    threshold_sq = 0.0001**2
+    for e in selected_edges:
+        mirror_co1 = e.verts[0].co.copy()
+        mirror_co2 = e.verts[1].co.copy()
+        mirror_co1.x *= -1
+        mirror_co2.x *= -1
+
+        loc1, index1, _ = kd.find(mirror_co1)
+        loc2, index2, _ = kd.find(mirror_co2)
+
+        if ((mirror_co1 - loc1).length_squared < threshold_sq) and (
+            (mirror_co2 - loc2).length_squared < threshold_sq
+        ):
+            v1 = bm.verts[index1]
+            v2 = bm.verts[index2]
+
+            for edge in v1.link_edges:
+                if v2 in edge.verts and edge not in selected_edges:
+                    mirror_edges[e] = edge
+                    break
+
+    return mirror_edges
 
 
 def find_x_mirror_edges(bm, selected_edges) -> list:
@@ -162,4 +224,3 @@ def find_bone_by_weight(obj, armature, selected_verts) -> object:
                         max_weight = weight
                         result_bone = bone
     return result_bone
-

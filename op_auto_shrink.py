@@ -2,7 +2,9 @@ import bpy
 import bmesh
 from mathutils import Vector
 from bpy.props import BoolProperty, FloatProperty, EnumProperty
-from .utils import Mio3ShrinkToolsBase
+from .utils import Mio3ShrinkToolsBase, find_x_mirror_verts, find_x_mirror_vert_pairs
+
+ver_5 = bpy.app.version >= (5, 0, 0)
 
 
 class MESH_OT_mio3_auto_shrink(bpy.types.Operator, Mio3ShrinkToolsBase):
@@ -15,14 +17,15 @@ class MESH_OT_mio3_auto_shrink(bpy.types.Operator, Mio3ShrinkToolsBase):
         name="Mode",
         items=[("SNAP", "Standard", ""), ("SMOOTH", "Smooth", "")],
     )
-    selected_bones: BoolProperty(name="Selected bones only", default=False)
+    selected_bone_only: BoolProperty(name="Selected bones only", default=False)
+    selected_vert_only: BoolProperty(name="Selected vertices only", default=True)
     end_bone_snap: EnumProperty(
         name="End Bone",
         items=[("HEAD", "Head", ""), ("TAIL", "Tail", "")],
         default="TAIL",
     )
     snap_factor: FloatProperty(
-        name="Joint Snap",
+        name="Snap to Joint",
         description="関節にスナップさせるしきい値",
         default=0.99,
         min=0.0,
@@ -42,14 +45,6 @@ class MESH_OT_mio3_auto_shrink(bpy.types.Operator, Mio3ShrinkToolsBase):
     def poll(cls, context):
         return context.object is not None and context.object.type == "MESH"
 
-    def invoke(self, context, event):
-        obj = context.active_object
-        obj.update_from_editmode()
-        if not obj.find_armature():
-            self.report({"ERROR"}, "Armature modifier not set")
-            return {"CANCELLED"}
-        return self.execute(context)
-
     def execute(self, context):
         self.start_time()
         obj = context.active_object
@@ -63,10 +58,15 @@ class MESH_OT_mio3_auto_shrink(bpy.types.Operator, Mio3ShrinkToolsBase):
         obj_world_mat_inv = obj_world_mat.inverted()
         arm_world_mat = armature.matrix_world
 
-        visible = {b.name for b in armature.pose.bones if not b.hide}
-        selected = {b.name for b in armature.pose.bones if not b.hide and b.select}
-        pose_bone_names = selected if self.selected_bones and selected else visible
-        target_bones = [b for b in armature.data.bones if b.use_deform and b.name in pose_bone_names]
+        if ver_5:
+            visible = {b.name for b in armature.pose.bones if not b.hide}
+            selected = {b.name for b in armature.pose.bones if not b.hide and b.select}
+            pose_bone_names = selected if self.selected_bone_only and selected else visible
+            target_bones = [b for b in armature.data.bones if b.use_deform and b.name in pose_bone_names]
+        else:
+            target_bones = [bone for bone in armature.data.bones if bone.select and bone.use_deform]
+            if not target_bones:
+                target_bones = [bone for bone in armature.data.bones if not bone.hide and bone.use_deform]
 
         bone_infos = {}
         for bone in target_bones:
@@ -90,10 +90,15 @@ class MESH_OT_mio3_auto_shrink(bpy.types.Operator, Mio3ShrinkToolsBase):
         end_bone_snap = self.end_bone_snap
 
         vertices = obj.data.vertices
-        for vert in bm.verts:
-            if not vert.select:
-                continue
 
+        if self.selected_vert_only:
+            target_verts = {v for v in bm.verts if v.select}
+            if obj.use_mesh_mirror_x:
+                target_verts.update(find_x_mirror_verts(bm, target_verts))
+        else:
+            target_verts = set(bm.verts)
+
+        for vert in target_verts:
             world_co = obj_world_mat @ vert.co
             total_weighted_pos = Vector((0.0, 0.0, 0.0))
             total_weight = 0.0
@@ -167,7 +172,8 @@ class MESH_OT_mio3_auto_shrink(bpy.types.Operator, Mio3ShrinkToolsBase):
 
         layout.use_property_split = True
         layout.use_property_decorate = False
-        layout.prop(self, "selected_bones")
+        layout.prop(self, "selected_bone_only")
+        layout.prop(self, "selected_vert_only")
 
         row = layout.row()
         row.prop(self, "end_bone_snap", expand=True)

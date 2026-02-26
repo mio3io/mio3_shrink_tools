@@ -1,13 +1,12 @@
 schema_version = "1.0.0"
 id = "mio3_shrink_tools"
 name = "Mio3 Shrink Tools"
-version = "0.9.0"
-tagline = "Shrink Tools"
+version = "1.0.0"
+tagline = "Support tool set for creating shrink shape keys for avatars"
 maintainer = "Mio"
 type = "add-on"
-tags = ["Mesh"]
+tags = ["Mesh", "Modeling"]
 blender_version_min = "4.2.0"
 license = ["SPDX:GPL-3.0-or-later"]
 website = "https://github.com/mio3io"
-copyright = ["2024 Mio"]
-
+copyright = ["2026 Mio"]
