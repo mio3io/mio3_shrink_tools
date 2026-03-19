@@ -112,7 +112,7 @@ class MESH_OT_mio3_auto_shrink(bpy.types.Operator, Mio3ShrinkToolsBase):
                 target_groups.append((group.weight, bone_info))
                 target_total_weight += group.weight
 
-            if target_total_weight <= 0.0:
+            if target_total_weight < 1e-6:
                 continue
 
             for weight, bone_info in target_groups:
