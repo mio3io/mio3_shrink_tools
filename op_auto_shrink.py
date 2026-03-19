@@ -101,23 +101,29 @@ class MESH_OT_mio3_auto_shrink(bpy.types.Operator, Mio3ShrinkToolsBase):
         for vert in target_verts:
             world_co = obj_world_mat @ vert.co
             total_weighted_pos = Vector((0.0, 0.0, 0.0))
-            total_weight = 0.0
 
             mesh_vert = vertices[vert.index]
+            target_groups = []
+            target_total_weight = 0.0
             for group in mesh_vert.groups:
                 bone_info = bone_infos.get(group.group)
                 if bone_info is None or group.weight <= 0.0:
                     continue
+                target_groups.append((group.weight, bone_info))
+                target_total_weight += group.weight
 
+            if target_total_weight < 1e-6:
+                continue
+
+            for weight, bone_info in target_groups:
+                normalized_weight = weight / target_total_weight
                 snap_pos = self.calc_snap_pos(
-                    mode, end_bone_snap, snap_factor, world_co, group.weight, bone_info
+                    mode, end_bone_snap, snap_factor, world_co, normalized_weight, bone_info
                 )
 
-                total_weighted_pos += snap_pos * group.weight
-                total_weight += group.weight
+                total_weighted_pos += snap_pos * normalized_weight
 
-            if total_weight > 0.0:
-                vert.co = obj_world_mat_inv @ world_co.lerp(total_weighted_pos / total_weight, volume_factor)
+            vert.co = obj_world_mat_inv @ world_co.lerp(total_weighted_pos, volume_factor)
 
         bmesh.update_edit_mesh(obj.data)
 
